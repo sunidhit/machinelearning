@@ -1,0 +1,517 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Programming Assignment 3 - Simple Linear versus Ridge Regression "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Your friend Bob just moved to Boston. He is a real estate agent who is trying to evaluate the prices of houses in the Boston area. He has been using a linear regression model but he wonders if he can improve his accuracy on predicting the prices for new houses. He comes to you for help as he knows that you're an expert in machine learning. \n",
+    "\n",
+    "As a pro, you suggest doing a *polynomial transformation*  to create a more flexible model, and performing ridge regression since having so many features compared to data points increases the variance. \n",
+    "\n",
+    "Bob, however, being a skeptic isn't convinced. He wants you to write a program that illustrates the difference in training and test costs for both linear and ridge regression on the same dataset. Being a good friend, you oblige and hence this assignment :) "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In this notebook, you are to explore the effects of ridge regression.  We will use a dataset that is part of the sklearn.dataset package.  Learn more at https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_boston.html"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Step 1:  Getting, understanding, and preprocessing the dataset\n",
+    "\n",
+    "We first import the standard libaries and some libraries that will help us scale the data and perform some \"feature engineering\" by transforming the data into $\\Phi_2({\\bf x})$"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import sklearn\n",
+    "from sklearn.datasets import load_boston\n",
+    "from sklearn.preprocessing import PolynomialFeatures\n",
+    "from sklearn import preprocessing\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "import sklearn.linear_model\n",
+    "from sklearn.model_selection import KFold"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "###  Importing the dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Import the boston dataset from sklearn\n",
+    "boston_data = load_boston()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "The number of features is:  13\n",
+      "The features:  ['CRIM' 'ZN' 'INDUS' 'CHAS' 'NOX' 'RM' 'AGE' 'DIS' 'RAD' 'TAX' 'PTRATIO'\n",
+      " 'B' 'LSTAT']\n",
+      "The number of exampels in our dataset:  506\n",
+      "[[6.3200e-03 1.8000e+01 2.3100e+00 0.0000e+00 5.3800e-01 6.5750e+00\n",
+      "  6.5200e+01 4.0900e+00 1.0000e+00 2.9600e+02 1.5300e+01 3.9690e+02\n",
+      "  4.9800e+00]\n",
+      " [2.7310e-02 0.0000e+00 7.0700e+00 0.0000e+00 4.6900e-01 6.4210e+00\n",
+      "  7.8900e+01 4.9671e+00 2.0000e+00 2.4200e+02 1.7800e+01 3.9690e+02\n",
+      "  9.1400e+00]]\n",
+      "[[24. ]\n",
+      " [21.6]]\n"
+     ]
+    }
+   ],
+   "source": [
+    "#  Create X and Y variables - X holding the .data and Y holding .target \n",
+    "X = boston_data.data\n",
+    "y = boston_data.target\n",
+    "\n",
+    "#  Reshape Y to be a rank 2 matrix \n",
+    "y = y.reshape(X.shape[0], 1)\n",
+    "\n",
+    "# Observe the number of features and the number of labels\n",
+    "print('The number of features is: ', X.shape[1])\n",
+    "# Printing out the features\n",
+    "print('The features: ', boston_data.feature_names)\n",
+    "# The number of examples\n",
+    "print('The number of exampels in our dataset: ', X.shape[0])\n",
+    "#Observing the first 2 rows of the data\n",
+    "print(X[0:2])\n",
+    "\n",
+    "\n",
+    "#remove\n",
+    "print(y[0:2])\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We will also create polynomial feeatures for the dataset to test linear and ridge regression on data with d = 1 and data with d = 2. Feel free to increase the # of degress and see what effect it has on the training and test error. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create a PolynomialFeatures object with degree = 2. \n",
+    "# Transform X and save it into X_2. Simply copy Y into Y_2 \n",
+    "poly = PolynomialFeatures(degree=2)\n",
+    "X_2 = poly.fit_transform(X)\n",
+    "y_2 = y"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(506, 105)\n",
+      "(506, 1)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# the shape of X_2 and Y_2 - should be (506, 105) and (506, 1) respectively\n",
+    "print(X_2.shape)\n",
+    "print(y_2.shape)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Your code goes here"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# TODO - Define the get_coeff_ridge_normaleq function. Use the normal equation method.\n",
+    "# TODO - Return w values\n",
+    "\n",
+    "def get_coeff_ridge_normaleq(X_train, y_train, alpha):\n",
+    "    \n",
+    "    w= np.dot(np.linalg.pinv(X_train),y_train)\n",
+    "    ##############\n",
+    "    return w"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# TODO - Define the evaluate_err_ridge function.\n",
+    "# TODO - Return the train_error and test_error values\n",
+    "\n",
+    "\n",
+    "def evaluate_err(X_train, X_test, y_train, y_test, w): \n",
+    "    \n",
+    "    #calculating train error -\n",
+    "    w_trans_x_train = np.dot(X_train,w)\n",
+    "    train_error = np.sum(np.power((w_trans_x_train - y_train),2)) / (X_train.shape[0])\n",
+    "    \n",
+    "    #calculating test error \n",
+    "    w_trans_x_test = np.dot(X_test,w)\n",
+    "    test_error = np.sum(np.power((w_trans_x_test - y_test),2)) / (X_test.shape[0])\n",
+    "    \n",
+    "    \n",
+    "    ##############\n",
+    "    return train_error, test_error"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# TODO - Finish writting the k_fold_cross_validation function. \n",
+    "# TODO - Returns the average training error and average test error from the k-fold cross validation\n",
+    "# use Sklearns K-Folds cross-validator: https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.KFold.html\n",
+    "\n",
+    "def k_fold_cross_validation(k, X, y, alpha):\n",
+    "    kf = KFold(n_splits=k, random_state=21, shuffle=True)\n",
+    "    total_E_val_test = 0\n",
+    "    total_E_val_train = 0\n",
+    "    for train_index, test_index in kf.split(X):\n",
+    "        X_train, X_test = X[train_index], X[test_index]\n",
+    "        y_train, y_test = y[train_index], y[test_index]\n",
+    "        \n",
+    "        # centering the data so we do not need the intercept term (we could have also chose w_0=average y value)\n",
+    "        y_train_mean = np.mean(y_train)\n",
+    "        y_train = y_train - y_train_mean\n",
+    "        y_test = y_test - y_train_mean\n",
+    "        # scaling the data matrix\n",
+    "        scaler = preprocessing.StandardScaler().fit(X_train)\n",
+    "        X_train = scaler.transform(X_train)\n",
+    "        X_test = scaler.transform(X_test)\n",
+    "        \n",
+    "        # determine the training error and the test error\n",
+    "        #### TO-DO #####\n",
+    "        w=get_coeff_ridge_normaleq(X_train, y_train, alpha)\n",
+    "        train_error,test_error = evaluate_err(X_train, X_test, y_train, y_test, w)\n",
+    "        total_E_val_test +=test_error\n",
+    "        total_E_val_train +=train_error   \n",
+    "    \n",
+    "    \n",
+    "       ##############\n",
+    "    E_val_test = total_E_val_test / k\n",
+    "    E_val_train = total_E_val_train/k\n",
+    "    return  E_val_test, E_val_train\n",
+    "    \n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def predict(X_train,y_train,alpha,test_data):\n",
+    "    \n",
+    "    #predict using polynomial regression \n",
+    "    poly = PolynomialFeatures(degree=2)\n",
+    "    X_2 = poly.fit_transform(X)\n",
+    "    y_2 = y\n",
+    "    test_data = poly.fit_transform(test_data)\n",
+    "    \n",
+    "    #scaling data\n",
+    "    y_2_mean = np.mean(y_2)\n",
+    "    y_2_train = y_2 - y_2_mean\n",
+    "    # scaling the data matrix\n",
+    "    scaler = preprocessing.StandardScaler().fit(X_2)\n",
+    "    X_2_train = scaler.transform(X_2)\n",
+    "    X_test = scaler.transform(test_data)\n",
+    "    #getting coefficient \n",
+    "    w=get_coeff_ridge_normaleq(X_2_train, y_2_train, alpha)\n",
+    "    print(\"parameters:\",w)\n",
+    "    #calculating predicted value using polynomial\n",
+    "    predictedvalue = np.dot(X_test,w)\n",
+    "    \n",
+    "    \n",
+    "    return predictedvalue\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "Linear regression -\n",
+      "Average Train error: 21.806183575851065\n",
+      "Average Test error: 23.63606860542818\n",
+      "best alpha with minimum test error rate: 10.0\n",
+      "\n",
+      "Ridge regression -\n",
+      "Average Train error for ridge regression: 21.806183575851065\n",
+      "Average Test error for ridge regression: 23.63606860542818\n",
+      "\n",
+      "Polynomial regression fo degree 2 -\n",
+      "Average Train error for Polynomial regression: 5.808820816012467\n",
+      "Average Test error for polynomial regression: 11.854968235566679\n",
+      "best alpha with minimum test error rate for polynomial regression: 10.0\n",
+      "\n",
+      "Polynomial regression for degree 2 with regularization-\n",
+      "Average Train error for Polynomial regression: 5.808820816012467\n",
+      "Average Test error for polynomial regression: 11.854968235566679\n",
+      "\n",
+      "For predicting using Polynomial regression, alpha used is- 10.0\n",
+      "parameters: [[ 5.45404395e-12]\n",
+      " [-3.91175879e+01]\n",
+      " [ 4.81627018e+00]\n",
+      " [-3.18362779e+01]\n",
+      " [ 7.53954659e+00]\n",
+      " [ 1.54958309e+01]\n",
+      " [ 1.52221935e+01]\n",
+      " [ 2.55289252e+01]\n",
+      " [-1.57410181e+01]\n",
+      " [ 1.69692008e+01]\n",
+      " [ 3.65030542e+00]\n",
+      " [ 1.39344990e+01]\n",
+      " [ 8.60679274e+00]\n",
+      " [ 5.16290496e+00]\n",
+      " [ 8.10236860e-01]\n",
+      " [ 4.96235319e-01]\n",
+      " [ 6.15618884e+01]\n",
+      " [ 1.99030712e+00]\n",
+      " [-4.18414986e+00]\n",
+      " [ 7.06583312e+00]\n",
+      " [-2.55274191e+00]\n",
+      " [-1.33152905e+00]\n",
+      " [ 4.46276302e+01]\n",
+      " [-1.38327608e+02]\n",
+      " [ 6.68591335e+01]\n",
+      " [-8.68856437e-01]\n",
+      " [ 4.07931525e+00]\n",
+      " [-8.82100032e-01]\n",
+      " [-4.26406567e-01]\n",
+      " [-3.28357854e-01]\n",
+      " [-1.01658208e+01]\n",
+      " [ 2.17366937e+00]\n",
+      " [ 5.70742641e-02]\n",
+      " [-1.79028726e+00]\n",
+      " [-4.60701298e-01]\n",
+      " [ 4.57259664e+00]\n",
+      " [-2.72947681e+00]\n",
+      " [ 5.90910219e+00]\n",
+      " [-6.94517658e-01]\n",
+      " [ 6.76116573e+00]\n",
+      " [ 4.20339875e-03]\n",
+      " [ 6.02071505e+00]\n",
+      " [ 1.21632543e+01]\n",
+      " [ 2.52999581e+00]\n",
+      " [ 1.88314299e+00]\n",
+      " [-4.07647024e+00]\n",
+      " [ 2.70563498e+00]\n",
+      " [-1.82081857e+00]\n",
+      " [ 6.26096203e+00]\n",
+      " [-1.88021206e+00]\n",
+      " [ 7.53954659e+00]\n",
+      " [-5.28670670e+00]\n",
+      " [-9.21720979e+00]\n",
+      " [ 2.73965750e-01]\n",
+      " [ 9.30293517e-01]\n",
+      " [-2.26613700e-01]\n",
+      " [ 4.85040798e-01]\n",
+      " [-4.19110970e+00]\n",
+      " [ 1.85234113e+00]\n",
+      " [-7.93141838e-01]\n",
+      " [-5.02109966e+00]\n",
+      " [ 1.24029741e+00]\n",
+      " [-9.85293947e+00]\n",
+      " [ 1.08644879e+01]\n",
+      " [-1.16406756e+01]\n",
+      " [ 2.45108626e+01]\n",
+      " [-2.86552012e+01]\n",
+      " [-1.23951577e+00]\n",
+      " [ 6.04905979e+00]\n",
+      " [ 3.34561940e+00]\n",
+      " [-1.02740963e+01]\n",
+      " [ 8.58439354e-01]\n",
+      " [-2.73509633e+00]\n",
+      " [-1.91093028e+01]\n",
+      " [-8.19821954e+00]\n",
+      " [-2.47080673e+00]\n",
+      " [-7.35181305e+00]\n",
+      " [ 5.54720976e-01]\n",
+      " [-4.23951358e-01]\n",
+      " [ 1.33336836e+01]\n",
+      " [-1.14382292e+01]\n",
+      " [ 4.86954846e-02]\n",
+      " [-7.48176087e+00]\n",
+      " [-5.95424374e+00]\n",
+      " [ 9.11405179e+00]\n",
+      " [-1.94476035e+00]\n",
+      " [-3.03050747e+00]\n",
+      " [-6.04352983e+00]\n",
+      " [-2.89571976e+00]\n",
+      " [ 1.82960259e+00]\n",
+      " [-3.06638357e+01]\n",
+      " [ 4.87567811e+01]\n",
+      " [-1.48447353e+01]\n",
+      " [ 7.50069454e-01]\n",
+      " [-6.01594343e+00]\n",
+      " [-1.25950886e+01]\n",
+      " [ 2.06804015e+01]\n",
+      " [-6.04404729e+00]\n",
+      " [-3.08476413e+00]\n",
+      " [ 1.32134806e+00]\n",
+      " [ 4.65516041e+00]\n",
+      " [ 8.69939554e-01]\n",
+      " [-1.54526102e+00]\n",
+      " [-1.22417768e+00]\n",
+      " [ 3.04036694e+00]]\n",
+      "\n",
+      "Predicted value for test data is: [230.62328849]\n"
+     ]
+    }
+   ],
+   "source": [
+    "\n",
+    "# implement linear regression when alpha=0\n",
+    "alpha=0\n",
+    "avg_test_error,avg_train_error = k_fold_cross_validation(10, X, y,alpha)\n",
+    "print(\"\\nLinear regression -\")\n",
+    "print(\"Average Train error:\",avg_train_error)\n",
+    "print(\"Average Test error:\",avg_test_error)\n",
+    "\n",
+    "#Finding the best alpha for ridge regression\n",
+    "alpha = np.logspace(1, 7, num=13)\n",
+    "alphatesterr=np.empty(shape=[0, 13])\n",
+    "for a in range(np.size(alpha)):\n",
+    "    test_err,train_err = k_fold_cross_validation(10, X, y,alpha[a])\n",
+    "    alphatesterr = np.append(alphatesterr,test_err)\n",
+    "\n",
+    "#finding the alpha value for minimum test error rate     \n",
+    "minimum_test_error_value=np.argmin(alphatesterr)\n",
+    "ind=np.unravel_index(minimum_test_error_value,alphatesterr.shape)\n",
+    "bestalpha=alpha[ind]\n",
+    "print(\"best alpha with minimum test error rate:\",bestalpha)\n",
+    "\n",
+    "#implementing ridge regression with best alpha\n",
+    "print(\"\\nRidge regression -\")\n",
+    "avg_test_error_ridge,avg_train_error_ridge = k_fold_cross_validation(10, X, y,bestalpha)\n",
+    "print(\"Average Train error for ridge regression:\",avg_train_error_ridge)\n",
+    "print(\"Average Test error for ridge regression:\",avg_test_error_ridge)\n",
+    "\n",
+    "#implementing polynomial regression of degree 2 \n",
+    "avg_test_error_p,avg_train_error_p = k_fold_cross_validation(10, X_2, y_2,0)\n",
+    "print(\"\\nPolynomial regression fo degree 2 -\")\n",
+    "print(\"Average Train error for Polynomial regression:\",avg_train_error_p)\n",
+    "print(\"Average Test error for polynomial regression:\",avg_test_error_p)\n",
+    "\n",
+    "#Finding the best alpha for polynomial regression\n",
+    "alpha1 = np.logspace(1, 7, num=105)\n",
+    "#print(\"alpha:\",alpha)\n",
+    "alphatesterr1=np.empty(shape=[0, 105])\n",
+    "for a in range(np.size(alpha1)):\n",
+    "    test_err,train_err = k_fold_cross_validation(10, X, y,alpha1[a])\n",
+    "    alphatesterr1 = np.append(alphatesterr1,test_err)\n",
+    "\n",
+    "#finding the alpha value for minimum test error rate     \n",
+    "minimum_test_error_value_p=np.argmin(alphatesterr1)\n",
+    "ind_p=np.unravel_index(minimum_test_error_value_p,alphatesterr1.shape)\n",
+    "bestalpha_p=alpha1[ind_p]\n",
+    "print(\"best alpha with minimum test error rate for polynomial regression:\",bestalpha_p)\n",
+    "#implementing polynomial regression with regularization \n",
+    "avg_test_error_pr,avg_train_error_pr = k_fold_cross_validation(10, X_2, y_2,bestalpha_p)\n",
+    "print(\"\\nPolynomial regression for degree 2 with regularization-\")\n",
+    "print(\"Average Train error for Polynomial regression:\",avg_train_error_pr)\n",
+    "print(\"Average Test error for polynomial regression:\",avg_test_error_pr)\n",
+    "\n",
+    "\n",
+    "\n",
+    "#predicting prices -\n",
+    "#using polynomial regression for predicting price for given test data\n",
+    "test_data=np.array([[5,0.5, 2, 0, 4, 8, 4, 6, 2, 2, 2, 4, 5.5]])\n",
+    "print(\"\\nFor predicting using Polynomial regression, alpha used is-\",bestalpha_p)\n",
+    "print(\"\\nPredicted value for test data is:\",predict(X,y,bestalpha_p,test_data)[0])\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
