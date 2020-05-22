@@ -1,1 +1,1 @@
-Machine learning algorithms without library.
+Machine learning algorithms using Numpy and Pandas
